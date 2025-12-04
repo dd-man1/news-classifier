@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLMニュース分類アプリ</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 LLMニュース分類アプリ</h1>
+            <p>AIがニュースを自動で分類します</p>
+        </header>
+
+        <div class="category-filter">
+            <button class="category-btn active" data-category="all">全て</button>
+            {% for category in categories %}
+            <button class="category-btn" data-category="{{ category }}">{{ category }}</button>
+            {% endfor %}
+        </div>
+
+        <div id="loading" class="loading">
+            <p>ニュースを読み込み中...</p>
+        </div>
+
+        <div id="news-container" class="news-container"></div>
+    </div>
+
+    <script>
+        let allNews = [];
+        let currentCategory = 'all';
+
+        // ページ読み込み時にニュースを取得
+        window.addEventListener('DOMContentLoaded', async () => {
+            await fetchNews();
+        });
+
+        // ニュースを取得
+        async function fetchNews() {
+            const loading = document.getElementById('loading');
+            const container = document.getElementById('news-container');
+            
+            loading.style.display = 'block';
+            container.innerHTML = '';
+
+            try {
+                const response = await fetch('/api/news');
+                allNews = await response.json();
+                loading.style.display = 'none';
+                displayNews(allNews);
+            } catch (error) {
+                loading.style.display = 'none';
+                container.innerHTML = '<p class="error">ニュースの取得に失敗しました</p>';
+                console.error('Error:', error);
+            }
+        }
+
+        // ニュースを表示
+        function displayNews(news) {
+            const container = document.getElementById('news-container');
+            container.innerHTML = '';
+
+            // カテゴリでフィルタリング
+            const filteredNews = currentCategory === 'all' 
+                ? news 
+                : news.filter(item => item.category === currentCategory);
+
+            if (filteredNews.length === 0) {
+                container.innerHTML = '<p class="no-news">該当するニュースがありません</p>';
+                return;
+            }
+
+            filteredNews.forEach(item => {
+                const newsCard = document.createElement('div');
+                newsCard.className = 'news-card';
+                newsCard.innerHTML = `
+                    <div class="news-category">${item.category}</div>
+                    <h3 class="news-title">
+                        <a href="${item.link}" target="_blank">${item.title}</a>
+                    </h3>
+                    <p class="news-date">${item.published}</p>
+                `;
+                container.appendChild(newsCard);
+            });
+        }
+
+        // カテゴリボタンのイベント
+        document.querySelectorAll('.category-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // アクティブ状態を更新
+                document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                // カテゴリを変更して再表示
+                currentCategory = btn.dataset.category;
+                displayNews(allNews);
+            });
+        });
+    </script>
+</body>
+</html>
